@@ -16,6 +16,7 @@ theme:
     accent: deep orange
   features:
     - navigation.expand
+    - navigation.indexes
     - navigation.top
     - toc.integrate
     - search.suggest
@@ -27,7 +28,6 @@ plugins:
   - search
 
 exclude_docs: |
-  blog/
   assets/data/qwen35-flywheel-session.jsonl
   assets/mark.svg
   javascripts/session-player.js
@@ -57,13 +57,16 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
-      toc_depth: 2
+      toc_depth: 4
 
 extra_css:
   - stylesheets/extra.css
 
 nav:
   - Home: index.md
+  - Blog:
+      - blog/index.md
+      - AI Compiler in the Agentic Era: blog/AI-compiler-in-agentic-era.md
   - Tutorial:
       - Overview: tutorial/index.md
       - Describe a model: tutorial/migrate.md
@@ -78,7 +81,6 @@ nav:
       - Parser: spec/parser.md
       - Semantic analysis: spec/semantic-analysis.md
       - Analysis: spec/analysis.md
-      - Schedule: spec/schedule.md
       - Passes: spec/passes.md
       - Target: spec/target.md
       - Code generation: spec/codegen.md

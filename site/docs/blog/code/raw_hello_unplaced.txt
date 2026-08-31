@@ -1,0 +1,25 @@
+# analysis target=nvidia.h200_sxm module=Unplaced function=chain topology=cta
+# selection requested=compute-cost,memory,roofline executed=compute-cost,memory,roofline
+# compute-cost flops=f16:786432@786432
+# traffic traffic=gmem:r3145728/w1572864@r3145728/w1572864
+# peak-footprint=gmem:1572864
+# roofline ideal-ns=984 bound-by=memory
+
+from __future__ import annotations
+
+from tilefoundry import func
+from tilefoundry.dsl.tf import *  # noqa: F401, F403
+from tilefoundry.dsl import Tensor
+from tilefoundry.dsl.storage import gmem, host, rmem, smem, tmem  # noqa: F401
+from tilefoundry.ir.types.shard import (
+    B, S, P, ComposedLayout, Layout, Mesh, ShardLayout, Topology,
+)
+
+@func
+def chain(
+    x: Tensor[(1, 1024, 256), "f16"]
+) -> Tensor[(1, 1024, 256), "f16"]:
+    v0 = mul(x, x)  # Tensor[(1, 1024, 256), "f16"]; compute-cost flops=f16:262144@262144; traffic traffic=gmem:r1048576/w524288@r1048576/w524288; roofline ideal-ns=328 bound-by=memory
+    v1 = add(v0, x)  # Tensor[(1, 1024, 256), "f16"]; compute-cost flops=f16:262144@262144; traffic traffic=gmem:r1048576/w524288@r1048576/w524288; roofline ideal-ns=328 bound-by=memory
+    v2 = mul(v1, x)  # Tensor[(1, 1024, 256), "f16"]; compute-cost flops=f16:262144@262144; traffic traffic=gmem:r1048576/w524288@r1048576/w524288; roofline ideal-ns=328 bound-by=memory
+    return v2

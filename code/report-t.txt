@@ -1,0 +1,18 @@
+from __future__ import annotations
+
+from tilefoundry import func
+from tilefoundry.dsl.tf import *  # noqa: F401, F403
+from tilefoundry.dsl import Tensor
+from tilefoundry.dsl.storage import gmem, host, rmem, smem, tmem  # noqa: F401
+from tilefoundry.ir.types.shard import (
+    B, S, P, ComposedLayout, Layout, Mesh, ShardLayout, Topology,
+)
+
+@func
+def chain(
+    x: Tensor[(1, 1024, 256), "f16"]
+) -> Tensor[(1, 1024, 256), "f16"]:
+    v0 = mul(x, x)  # Tensor[(1, 1024, 256), "f16"]
+    v1 = add(v0, x)  # Tensor[(1, 1024, 256), "f16"]
+    v2 = mul(v1, x)  # Tensor[(1, 1024, 256), "f16"]
+    return v2

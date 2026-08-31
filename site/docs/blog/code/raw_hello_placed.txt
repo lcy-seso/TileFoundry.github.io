@@ -1,0 +1,37 @@
+# analysis target=nvidia.h200_sxm module=Placed function=chain topology=cta
+# selection requested=compute-cost,memory,roofline executed=compute-cost,memory,roofline
+# compute-cost flops=f16:786432@98304
+# traffic traffic=gmem:r524288/w524288@r65536/w65536,rmem:r3670016/w2097152@r458752/w262144
+# peak-footprint=gmem:1048576,rmem:196608
+# roofline ideal-ns=219 bound-by=memory
+
+from __future__ import annotations
+
+from tilefoundry import func
+from tilefoundry.dsl.tf import *  # noqa: F401, F403
+from tilefoundry.dsl import Tensor
+from tilefoundry.dsl.storage import gmem, host, rmem, smem, tmem  # noqa: F401
+from tilefoundry.ir.types.shard import (
+    B, S, P, ComposedLayout, Layout, Mesh, ShardLayout, Topology,
+)
+
+cta = Mesh((Topology("cta", 8),), Layout((8,), (1,)), names=('tile',))
+
+@func
+def chain(
+    x: Tensor[(1, 1024, 256), "f16"]
+) -> Tensor[(1, 1024, 256), "f16", (1, 8 @ cta.tile, 128, 256)]:
+    v0 = reshard(x, layout=ShardLayout(
+            layout=Layout((1, 8, 128, 256), None),
+            attrs=(S(1),),
+            mesh=cta,
+        ), storage=rmem)  # Tensor[(1, 1024, 256), "f16", ((1, 8 @ cta.tile, 128, 256), (0, 0, 256, 1)), "rmem"]; compute-cost; traffic traffic=gmem:r524288/w0@r65536/w0,rmem:r0/w524288@r0/w65536; roofline ideal-ns=110 bound-by=memory
+    v1 = mul(v0, v0)  # Tensor[(1, 1024, 256), "f16", ((1, 8 @ cta.tile, 128, 256), (0, 0, 256, 1)), "rmem"]; compute-cost flops=f16:262144@32768; traffic traffic=rmem:r1048576/w524288@r131072/w65536; roofline ideal-ns=1 bound-by=compute
+    v2 = add(v1, v0)  # Tensor[(1, 1024, 256), "f16", ((1, 8 @ cta.tile, 128, 256), (0, 0, 256, 1)), "rmem"]; compute-cost flops=f16:262144@32768; traffic traffic=rmem:r1048576/w524288@r131072/w65536; roofline ideal-ns=1 bound-by=compute
+    v3 = mul(v2, v0)  # Tensor[(1, 1024, 256), "f16", ((1, 8 @ cta.tile, 128, 256), (0, 0, 256, 1)), "rmem"]; compute-cost flops=f16:262144@32768; traffic traffic=rmem:r1048576/w524288@r131072/w65536; roofline ideal-ns=1 bound-by=compute
+    v4 = reshard(v3, layout=ShardLayout(
+            layout=Layout((1, 8, 128, 256), None),
+            attrs=(S(1),),
+            mesh=cta,
+        ), storage=gmem)  # Tensor[(1, 1024, 256), "f16", (1, 8 @ cta.tile, 128, 256)]; compute-cost; traffic traffic=gmem:r0/w524288@r0/w65536,rmem:r524288/w0@r65536/w0; roofline ideal-ns=110 bound-by=memory
+    return v4

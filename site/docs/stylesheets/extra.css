@@ -204,7 +204,7 @@ body,
 }
 
 .md-typeset h3 {
-  margin: 1.6em 0 0.5em;
+  margin: 1.6em 0 1em;
   padding-left: 0.5em;
   border-left: 5px solid var(--tf-red);
   font-size: 1.1rem;
@@ -275,9 +275,10 @@ body,
 .md-typeset blockquote {
   margin: 1.3em 0;
   padding: 0.08em 0 0.08em 1.05em;
-  border-left: 3px solid var(--tf-blue);
-  color: var(--md-default-fg-color);
-  font-size: 0.95rem;
+  border-left: 3px solid var(--tf-line);
+  color: var(--tf-muted);
+  font-size: 0.72rem;
+  font-style: italic;
 }
 
 .md-typeset blockquote strong {
@@ -717,4 +718,62 @@ body,
   .tf-session-player__code { height: 22rem; }
   .tf-session-player__throughput { grid-template-columns: 1fr auto; }
   .tf-session-player__throughput small { grid-column: 1 / -1; text-align: left; }
+}
+
+/* Blog figures: centred image, centred caption underneath. */
+.md-typeset img.tf-fig {
+  display: block;
+  margin: 1.4rem auto 0.5rem;
+}
+
+.md-typeset p.tf-figcap {
+  margin-top: 0;
+  text-align: center;
+  color: var(--tf-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+/* Tables take the width their content needs, and sit centred when that is less
+   than the column. Material forces `width: 100%` on the table it wraps at
+   runtime, so both the wrapper and the bare table are overridden here. */
+.md-typeset__table {
+  display: block;
+  overflow-x: auto;
+}
+
+.md-typeset__table table:not([class]),
+.md-typeset table:not([class]) {
+  display: table;
+  width: auto;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* A figure whose detail needs the whole column. */
+.md-typeset img.tf-fig-wide {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Sentence-level highlight. Material paints `mark` with a ground, so the class
+   clears it and carries the emphasis in the ink instead. */
+.md-typeset mark.tf-hl,
+.md-typeset em.tf-hl {
+  background: none;
+  color: var(--tf-red-dark);
+}
+
+/* Article subtitle: one line under the h1, carrying the thesis. */
+.md-typeset p.tf-subtitle {
+  margin-top: -0.6rem;
+  margin-bottom: 1.6rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--tf-line-soft);
+  font-family: var(--tf-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--tf-muted);
 }
