@@ -1,0 +1,10 @@
+# The TileFoundry ref this site documents. A reader following these pages runs a
+# released TileFoundry, so the site renders the release rather than main -- docs
+# describing a command that is not in the reader's install is worse than docs
+# that lag. Bump this when a release goes out; the published pages carry the ref
+# in their footer, so what a page documents is never a guess.
+#
+# The first line that is neither blank nor a comment is the ref. A one-off render
+# of something else -- main, a branch, a SHA -- goes through the publish
+# workflow's source_ref input and does not touch this file.
+v0.0.2

@@ -68,9 +68,9 @@ nav:
   - Home: index.md
   - Tutorial:
       - Overview: tutorial/index.md
-      - Step 1 — Describe it: tutorial/migrate.md
-      - Step 2 — Make it fast: tutorial/optimize.md
-      - Authoring HIR: tutorial/authoring.md
+      - Describing a published step: tutorial/migrate.md
+      - Making one step fast: tutorial/optimize.md
+      - Putting it all to work: tutorial/showcase.md
   - Specifications:
       - Architecture: spec/architecture.md
       - Core IR: spec/core-ir.md
