@@ -80,7 +80,7 @@ Agent 与 TileFoundry 之间交互的对象是两份程序：authored HIR 和 ru
 *图 1　TileFoundry 使用过程中developer，agent和AI compiler的交互过程。*
 { .tf-figcap }
 
-在[下一节](#two-programs) 我们会进一步介绍这些核心组件，这里我们首先聚焦于TileFoundry做出的核心设计选择：
+在[下一节](#usage) 我们会进一步介绍这些核心组件，这里我们首先聚焦于TileFoundry做出的核心设计选择：
 
 1. **Agent 与 TileFoundry 通过两份程序 source-to-source 交互：硬件无关的 HIR，硬件相关的实现。** HIR 是硬件无关的语义参考程序，描述算什么、每个 value 驻留在哪一层内存、沿 tensor 的哪个轴切分；它可以被 evaluator 直接解释执行，也可以被静态分析，在尚无任何 kernel 实现时便算出 IO 流量、容量与 roofline 下限。runtime twin 是硬件相关的程序，指令选择、barrier、流水级数、warp 分工、拷贝是否异步、寄存器预算如何划分，都在这一层决定；TileFoundry 从不读它的函数体，只调用它。
 
@@ -96,120 +96,137 @@ Agent 与 TileFoundry 之间交互的对象是两份程序：authored HIR 和 ru
 
 ## 使用 TileFoundry：DSL、check 与 analyze { #usage }
 
-这一节我们用一个完整的例子进一步介绍为什么 TileFoundry 的设计能够提高 coding agent写kernel的生产效率，是AI compiler 在agent时代一个合理的演化形态。
+当开发者接到一个任务，优化下面这段 PyTorch 程序：
 
-### authored HIR 与 runtime twin { #two-programs }
+```python
+def reference(x):  # x: float16[1, 4096, 2048]
+    a = x * x
+    b = a + x
+    return b * x
+```
 
-Agent 手上只有三样东西：一份描述计算的 DSL，一条判定一致性的命令 `check`，一条计算代价的命令 `analyze`。
+开发者将参考程序和优化目标一起交给 agent：
 
-用这份 DSL 写出的程序称为 authored HIR，它以整个模型为单位描述计算过程，不局限于单个算子。与它同结构的那一份称为 runtime twin，函数体可以是 Triton、CUDA C 或者 CuTeDSL——TileFoundry 不认识这些后端，也不需要认识：它只调用 twin，再比对它的输出。
+> 用 TileFoundry 分析这段计算，寻找适合 H200 的切分与存储方案，并编写与参考结果一致的实现。
 
-**第一轮：这是什么，该怎么做。** agent 领到任务，第一件事不是写 kernel，而是发问：
+这对应图 1 中 Human 发出的 Prompt。接下来，由 agent 自行推进整个任务流程：
 
-| agent 问什么 | 命令 | 拿回什么 |
+**第一步：认识工具，明确工作流。** agent 拿到 prompt，先向 TileFoundry 提问：
+
+| agent 问什么 | 命令 |  学会什么|
 | --- | --- | --- |
-| 这是什么 | `tilefoundry help` | 平台的能力边界 |
-| 我该从哪开始 | `tilefoundry tutorial` | 一次任务的工作流程 |
-| HIR 语法怎么写 | `tilefoundry spec dsl` | 语言规范 |
+| 这是什么 | `tilefoundry` | 工具的能力与命令入口 |
+|  该怎么做| `tilefoundry tutorial` | 典型的工作流程 |
+| HIR 语法怎么写 | `tilefoundry spec dsl` | DSL 的语言规范 |
 
-问清楚之后，一次任务分两步：先让它对，再让它快。下面这个例子取自 TileFoundry 自带的教程，是某个已发布模型中的一个子层——先做 RMS 归一化，再按块取绝对值最大，量化到 fp8。
+一轮探索后，agent掌握足够的信息，开始写程序，后续遇到具体问题时再按需查询。
 
-**第一步：先让它对。** 参考不是对这段计算的转述，而是模型真正在跑的那份代码——`transformers` 的 `LlamaRMSNorm`，加上模型自己的 `quantization_config` 声明的量化方式。
+**第二步：写出 HIR，迭代切分方案。** agent 用 DSL 描述参考中的计算。它先沿行按 8 并行，三步计算都在寄存器中完成，再写回显存：
 
-`rms_norm_eps`、`weight_block_size`、`fmt` 都是模型公布的字段，照抄即可。但有一件事没有任何字段写明：结果在哪一步落回 bf16。它只写在代码里——`LlamaRMSNorm.forward` 的最后一行是 `self.weight * hidden_states.to(input_dtype)`，先 cast，再乘 gamma。
-
-第一版 HIR 把这个顺序写反了，先乘 gamma，再 cast。`tilefoundry check` 拒绝：
-
-```text
-  output[0]   fp8e4m3[2,7168]   ref_norm 19084.5
-    equal                              mismatched 432 elements 14336 FAIL
-  output[1]   f32[2,56]   ref_norm 0.0685877
-    allclose(atol=1e-06 rtol=1e-06)    max_violation 6.87445e-05  FAIL
-
-FAIL
-
-  warning: FAIL says the candidate and reference differ, not which side is closer to
-           truth. The reference may carry its own rounding; check compares only
-           against it.
+```python
+@func
+def chain(x: Tensor[(1, 4096, 2048), "f16"]):
+    with Mesh(("cta",), layout=(8,), names=("tile",)) as cta:
+        xr = tf.reshard(x, (1, 4096 @ cta.tile, 2048), "rmem")
+        a = tf.mul(xr, xr)
+        b = tf.add(a, xr)
+        return tf.reshard(tf.mul(b, xr), (1, 4096 @ cta.tile, 2048), "gmem")
 ```
 
-两个输出，两个独立的判决，没有一个笼统的「差不多」。量化后的张量是离散的，一个值不对即是错，因此用 `equal`：14336 个元素中有 432 个不等。fp8e4m3 只有三位尾数，大部分差异被量化抹平，余下这 432 个没有。f32 的 scale 则把差异全部保留，`max_violation` 是最差的那个元素超出容差多远，6.87e-5 相对 1e-6 的界，说明分歧是真实的。
-
-最后那段 warning 由 `check` 自行打印：它只指出两边不一致，并不判断哪一边更接近真值。
-
-改动只有一行，把先乘 gamma 改为先落 bf16。同一条命令，一个字符都未变：
+其中 `Mesh` 描述执行域，`reshard` 指定数据的分布和存储位置。这样，agent 就写出了第一版 authored HIR，但是 **这份方案是否可行？**
+为了确认这个事实，agent 调用 `tilefoundry analyze`，询问这份 HIR 的工作量、流量、容量和理想时间：
+```sh
+tilefoundry analyze hello_placed_toobig.py:Placed.chain report.txt \
+    --compute-cost --memory --roofline
+```
+TileFoundry 返回了容量错误：每份输入有 `512 × 2048` 个 fp16 元素，需要 2 MiB，超过 H200 target 声明的 256 KiB rmem 容量：
 
 ```text
-  output[0]   fp8e4m3[2,7168]   ref_norm 19084.5
-    equal                              mismatched 0 elements 14336 PASS
-  output[1]   f32[2,56]   ref_norm 0.0685877
-    allclose(atol=1e-06 rtol=1e-06)    max_violation 0            PASS
-
-PASS
+needs 2097152 B in rmem, which exceeds the 262144 B the target states for that level
 ```
 
-至此参考语义固定下来。此后所有的改写，都要回到这条命令上来判定。
-
-**第二步：再让它快。** Agent 提问的方式，是打开它需要的那几个开关：
+这条反馈成为下一次修改的依据。agent 再沿列切 32 份，形成 `8 × 32 = 256` 个 CTA 分片。每个 CTA 内安排 `32 × 8` 个线程，让每个线程持有连续 8 个 fp16，供实现时向量化读写。模块同时声明 256 个 CTA 和每 CTA 256 个线程，输入和算术保持不变：
+```python
+with Mesh(("cta",), layout=(8, 32), names=("row", "col")) as cta:
+    with Mesh(("thread",), layout=(32, 8), names=("row", "col")) as thread:
+        xr = tf.reshard(x, (1, 8 @ cta.row, 16, 32 @ thread.row,
+                            32 @ cta.col, 8 @ thread.col, 8), "rmem")
+        a = tf.mul(xr, xr)
+        b = tf.add(a, xr)
+        return tf.reshard(tf.mul(b, xr),
+                         (1, 8 @ cta.row, 16, 32 @ thread.row,
+                             32 @ cta.col, 8 @ thread.col, 8), "gmem")
+```
+对修改后的 HIR 再运行同一组分析，每份输入降为 64 KiB，报告的 rmem 峰值为 192 KiB，容量检查通过。agent 随即调用 `check`，执行这份 HIR 并与 PyTorch 参考结果比较：
 
 ```sh
-tilefoundry analyze rms_norm_quant.py:Naive report.txt \
-            --compute-cost --memory --roofline
+tilefoundry check hello_two_cuts.py:Placed.chain \
+    --inputs files:x.pt --expected expected.pt --device cuda \
+    --out output --fn equal
 ```
-
-报告的头几行即是回答，一个开关对应一行：
-
-| agent 想知道 | 报告里的哪一行 |
-| --- | --- |
-| 这段计算一共有多少工作量 | `# compute-cost flops=…` |
-| 要搬多少数据 | `# traffic gmem:…` |
-| 装不装得下 | `# peak-footprint=…` |
-| 下限是多少，卡在算力还是带宽 | `# roofline ideal-ns=… bound-by=…` |
-
-这些数字是照着 target 公布的速率算出来的；计算它们的时候，可以尚无任何 kernel 存在。
-
-第一版把工作切在两个 `@func` 之间：一个产出归一化后的行，另一个再量化它们。`@func` 边界是一次真实的交接，那些行必须写到下一个函数读得到的地方：
-
 ```text
-# traffic traffic=gmem:r71680/w43456@r71680/w43456,rmem:r603496/w488344@...
-# roofline ideal-ns=24 bound-by=memory
-```
-
-`bound-by=memory` 指出了方向：在这里削减 flops 换不来任何收益，该削减的是流量。要削减的正是那次交接——2 × 7168 个 bf16 合 28672 B，写出一次，再读回一次。
-
-把同样的算术合进一个 `@func`，归一化后的行便不再离开寄存器：
-
-```text
-# traffic traffic=gmem:r43008/w14784@r43008/w14784,rmem:r574824/w459672@...
-# roofline ideal-ns=13 bound-by=memory
-```
-
-读少了 28672 B，写也少了 28672 B，正是不再往返的那些行，`ideal-ns` 随之从 24 降到 13。`rmem` 的流量分毫未变——同样的值仍要计算，只是不再中途落地。每一轮只改一处放置决策，再问一次，并留下上一轮的数字作对照，一次改动与它带来的变化因此始终成对。
-
-结构定下来，才写 runtime twin。这一步唯一手写的 kernel 是一个 Triton 实现，一行一个 program，整段计算融于其中。这次 `check` 不给 `--expected`，authored HIR 自身即是参考：
-
-```text
-twin.py:Fast
-  reference: evaluator on Fused.rms_norm_quant
-
-  output[0]   fp8e4m3[2,7168]   ref_norm 12548.9
-    equal                              mismatched 0 elements 14336 PASS
-  output[1]   f32[2,56]   ref_norm 0.156977
-    allclose(atol=1e-06 rtol=1e-06)    max_violation 0            PASS
-
+reference: expected.pt
 PASS
 ```
 
-twin 被约束的是一致性，不是性能数字。图 1 中的 Perf 排在末位，真实性能到这一步才量取。
+**第三步：实现 runtime twin，再获得性能数据。** 有了通过检查的 HIR，agent 开始写图中的另一份程序。它采用 PyTorch 的 `load_inline` 编译 CUDA custom op，按 HIR 的分布安排 CTA 和线程。每个线程一次读写连续 8 个 fp16 (16 字节)，并用 `half2` 成对计算：
 
-改哪里、改成什么，始终由 agent 决定。
+```cuda
+union Half8 { uint4 packed; half2 pairs[4]; };
 
-上面这一问两步，便是一次任务的骨架。图 2 换一个规模更大的例子：一个 `attn`，一份描述覆盖所有序列长度，多个回合连起来是什么样子。
+__global__ void chain(const half* __restrict__ input, half* __restrict__ output) {
+    int c = threadIdx.x * 8;
+    for (int r = threadIdx.y; r < 512; r += blockDim.y) {
+        int i = (blockIdx.y * 512 + r) * 2048 + blockIdx.x * 64 + c;
+        Half8 values{*reinterpret_cast<const uint4*>(input + i)};
+        #pragma unroll
+        for (int j = 0; j < 4; ++j) {
+            half2 x = values.pairs[j];
+            half2 a = __hmul2(x, x);
+            half2 b = __hadd2(a, x);
+            values.pairs[j] = __hmul2(b, x);
+        }
+        *reinterpret_cast<uint4*>(output + i) = values.packed;
+    }
+}
 
-![图 2 一次改写的过程](figures/workflow.png){ .tf-fig .tf-fig-wide }
+// 启动配置：grid.x 切列，grid.y 切行；stream 为 PyTorch 当前 CUDA stream。
+chain<<<dim3(32, 8), dim3(8, 32), 0, stream>>>(input, output);
+```
+HIR 的类型系统提供连续数据在线程间分布的描述，CUDA 实现负责选用向量访存指令。通过反汇编已确认这里生成了 128-bit load/store；每个线程每轮只保留 8 个值。
 
-*图 2　多个回合连起来是什么样子。`analyze` 只陈述现象，改写由 agent 决定；最后 `check` 把 runtime twin 的每个输出对着参考比一遍——那条边是比较，不是生成。*
-{ .tf-figcap }
+通过 `@runtime_module(Placed)` 关联 HIR，并实现同名的 `chain`：
+```python
+@runtime_module(Placed)
+class InlineTwin:
+    @runtime_func
+    def chain(self, x):
+        return torch.ops.tf_blog_hello.chain(x)
+```
+
+agent 再次调用 `check`。这次选择 twin，并省去 `--expected`，TileFoundry 就会执行对应的 HIR 作为参考：
+
+```sh
+tilefoundry check hello_twin_cuda.py:InlineTwin \
+    --inputs files:x.pt --device cuda --out output --fn equal
+```
+
+```text
+reference: evaluator on Placed.chain
+PASS
+```
+
+检查通过后，agent 再测量实际耗时。用 CUDA event 计时：先预热 10 次，再测 10 组、每组 100 次，取平均单次耗时的中位数。编译不计入时间：
+
+```python
+runtime = InlineTwin()
+for name, fn in [("PyTorch reference", reference), ("CUDA twin", runtime.chain)]:
+    print(name, measure(fn)["median_us"], "μs")
+```
+
+H200 上本次实测，整个调用过程中， PyTorch reference 为 **34.67 μs**，CUDA twin 为 **7.68 μs**，约 **4.51×** 加速。
+
+Agent 直到最后一步才实测拿到 Perf 反馈，作为下一轮优化的事实。 再次之前，`check` 检查结果是否符合判据，`analyze` 提供静态代价分析，帮助Agent 规避错误方向，高效且精准地完成优化任务。
 
 ## 把 TileFoundry 交给 agent：写出整个模型 { #whole-model }
 
