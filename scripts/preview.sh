@@ -19,6 +19,7 @@ mkdir -p "$destination/docs"
 cp -asf "$upstream_root/docs/." "$destination/docs/"
 cp -asf "$pages_root/site/docs/." "$destination/docs/"
 ln -sf "$pages_root/site/mkdocs.yml" "$destination/mkdocs.yml"
+ln -sfn "$pages_root/site/hooks" "$destination/hooks"
 
 exec mkdocs serve \
   --config-file "$destination/mkdocs.yml" \

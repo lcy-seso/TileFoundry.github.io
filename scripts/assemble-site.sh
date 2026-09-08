@@ -24,3 +24,9 @@ mkdir -p "$destination/docs"
 cp -a "$upstream_root/docs/." "$destination/docs/"
 cp -a "$pages_root/docs/." "$destination/docs/"
 cp -a "$pages_root/mkdocs.yml" "$destination/mkdocs.yml"
+
+# Build hooks are part of the site definition; mkdocs resolves the `hooks`
+# paths against the directory holding mkdocs.yml.
+if [[ -d "$pages_root/hooks" ]]; then
+  cp -a "$pages_root/hooks" "$destination/hooks"
+fi

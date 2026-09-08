@@ -1,3 +1,3 @@
 # Blog
 
-- [AI Compiler in the Agentic Era](AI-compiler-in-agentic-era.md)
+- [AI Compilers in the Agentic Era](AI-compilers-in-the-agentic-era.md)

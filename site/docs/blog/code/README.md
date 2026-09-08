@@ -1,6 +1,6 @@
 # hello world 的源码与原始输出
 
-[十八行的 hello world](../AI-compiler-in-agentic-era.md#hello) 那一节的三个数字来自这里。
+[十八行的 hello world](../AI-compilers-in-the-agentic-era.md#hello) 那一节的三个数字来自这里。
 
 ## 环境
 

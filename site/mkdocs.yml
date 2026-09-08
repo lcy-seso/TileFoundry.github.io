@@ -27,6 +27,9 @@ theme:
 plugins:
   - search
 
+hooks:
+  - hooks/highlight_tilefoundry.py
+
 exclude_docs: |
   assets/data/qwen35-flywheel-session.jsonl
   assets/mark.svg
@@ -37,6 +40,7 @@ exclude_docs: |
 markdown_extensions:
   - admonition
   - attr_list
+  - footnotes
   - md_in_html
   - pymdownx.details
   - pymdownx.highlight:
@@ -66,7 +70,7 @@ nav:
   - Home: index.md
   - Blog:
       - blog/index.md
-      - AI Compiler in the Agentic Era: blog/AI-compiler-in-agentic-era.md
+      - AI Compilers in the Agentic Era: blog/AI-compilers-in-the-agentic-era.md
   - Tutorial:
       - Overview: tutorial/index.md
       - Describe a model: tutorial/migrate.md
