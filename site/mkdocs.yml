@@ -27,9 +27,6 @@ theme:
 plugins:
   - search
 
-hooks:
-  - hooks/highlight_tilefoundry.py
-
 exclude_docs: |
   assets/data/qwen35-flywheel-session.jsonl
   assets/mark.svg

@@ -1,13 +1,16 @@
 # AI Compilers in the Agentic Era
 
 当使用者变成 agent，AI compiler 该如何演进？
-{ .tf-subtitle }
 
 ## 重新思考 agent 与 AI compiler 之间的边界 { #who }
 
-LLM 的训练与推理是一类 high-level 并行计算任务。要让一个 LLM 在特定硬件上高效运行，往往需要为特定场景定制高性能 kernel。AI compiler 正是为解决这一问题而设计的代码生成系统，也是过去几年系统研究领域最受关注的方向之一。它由一系列错综复杂、互相关联的设计选择构成，通常包括：（1）描述 LLM 算法的 DSL，以及辅助程序分析、代码变换的各层 IR；（2）如何离散化性能空间、对性能进行建模；（3）给定求得的解，如何进行代码生成。后两项——对性能建模并求解 schedule，以及给定求得的解生成代码——一直是 AI compiler 研究关注的重点。
+LLM 的训练与推理是一类 high-level 并行计算任务。要让一个 LLM 在特定硬件上高效运行，往往需要为特定场景定制高性能 kernel。
 
-为一个新的硬件写出高性能 kernel，调优的选择呈爆炸式增长：调整资源的分配、改变 tile 形状、重排数据的划分、重排 barrier、改变数值精度；换一个硬件、换一个模型，所有的性能选择都需要重新求解一次。这组选择通常被称为一次 scheduling。对它建模并求解是第一个难题：AI compiler 通常把性能调优转化为一个组合优化问题，在离散的性能空间中选择一组策略，而这类问题的目标与约束难以设计，解析解难以求解。生成代码是第二个难题：即便已经拥有一个分析能力足够强的 scheduler，能够判断和评估各种调度策略，把它们完备地转换为硬件上可以运行的代码、覆盖各种 corner case，这一步的工程工作量依然不容忽视。
+**AI compiler 过去主要解决两个难题：求解 schedule，以及把解生成成可运行的代码。** 它通常包含描述 LLM 算法的 DSL，辅助程序分析、代码变换的各层 IR，对性能空间的离散化与建模，以及最终的代码生成。
+
+**第一个难题是 scheduling。** 为一个新的硬件写出高性能 kernel，调优的选择呈爆炸式增长：调整资源的分配、改变 tile 形状、重排数据的划分、重排 barrier、改变数值精度；换一个硬件、换一个模型，所有的性能选择都需要重新求解一次。AI compiler 通常把性能调优转化为一个组合优化问题，在离散的性能空间中选择一组策略，而这类问题的目标与约束难以设计，解析解难以求解。
+
+**第二个难题是代码生成。** 即便已经拥有一个分析能力足够强的 scheduler，能够判断和评估各种调度策略，把它们完备地转换为硬件上可以运行的代码、覆盖各种 corner case，这一步的工程工作量依然不容忽视。
 
 现代 compiler 中分量最重的部分是 code optimizations，即在语义不变的前提下把程序从 A 变换到 B，使 B 在某个给定的独立指标上优于 A。为求解上述两个难题，AI compiler 在程序分析、形式化验证与性能建模上发展出了完整的设计、关键技术与配套工具：以量化的方法研究 kernel 性能，以围绕类型的形式化方法推断和验证程序语义。这些定量、形式化的方法，是 compiler 在研究 scheduling 求解与代码生成的过程中形成的最丰富的知识。
 
@@ -16,7 +19,6 @@ LLM 的训练与推理是一类 high-level 并行计算任务。要让一个 LLM
 知识、经验和执行力似乎都不再是问题。困扰 AI compiler 研究多年的高性能 kernel 自动生成，是否已经被 coding agent 解决？在 agentic 时代，这两个最擅长写程序的系统之间的边界在哪里：
 
 Agent 成为 AI compiler 本身，还是成为 compiler 的一部分，例如：充当其内部的 pass、求解器，或者 code generator？
-{ .tf-lede }
 
 ### 反馈决定 agent 能走多远 { #hard }
 
@@ -69,15 +71,13 @@ FlashAttention 系列算法是大算子融合的一个典型代表：它的 sche
 基于以上这些观察，我们设计了 TileFoundry，也借由它重新思考和回答在 agent 时代，coding agent 与 AI compiler 之间的工作边界应该如何设计。
 这一节我们首先聚焦于 TileFoundry 做出的核心设计选择，在[下一节](#usage) 我们会通过一个具体的例子，介绍 TileFoundry 作为一个为 agent 设计的 AI compiler 的细节。
 
-在 TileFoundry 里，开发者只用一段自然语言 prompt 描述任务目标，此后由 agent 向 TileFoundry 的 [CLI](#usage "TileFoundry 使用接口，下一节展开"){ .tf-api } 提问，再根据 TileFoundry 给与的反馈修改和生成 kernel。
-{ .tf-lede }
+在 TileFoundry 里，开发者只用一段自然语言 prompt 描述任务目标，此后由 agent 向 TileFoundry 的 [CLI](#usage "TileFoundry 使用接口，下一节展开") 提问，再根据 TileFoundry 给与的反馈修改和生成 kernel。
 
-Agent 与 TileFoundry 之间交互的对象是两份程序：[HIR](https://tile-ai.github.io/TileFoundry.github.io/spec/hir/){ .tf-api } 和 [runtime twin](#usage "TileFoundry 使用接口，下一节展开"){ .tf-api }。HIR 能够以整个模型为单位（不局限于单个 operator）描述独立于任何硬件的逻辑计算过程；而 runtime twin 服务于性能，可以由任何后端具体地实现。TileFoundry 的 [`check`](#usage "TileFoundry 使用接口，下一节展开"){ .tf-api } 严格检查这两份程序的语义是否等价。在整个工作循环里，***TileFoundry 不写 kernel，它只回答 agent 的问题，读懂程序并给出这段程序的性能界，对一次优化给出判决***。图 1 是这个过程的全貌。
+Agent 与 TileFoundry 之间交互的对象是两份程序：[HIR](https://tile-ai.github.io/TileFoundry.github.io/spec/hir/) 和 [runtime twin](#usage "TileFoundry 使用接口，下一节展开")。HIR 能够以整个模型为单位（不局限于单个 operator）描述独立于任何硬件的逻辑计算过程；而 runtime twin 服务于性能，可以由任何后端具体地实现。TileFoundry 的 [`check`](#usage "TileFoundry 使用接口，下一节展开") 严格检查这两份程序的语义是否等价。在整个工作循环里，***TileFoundry 不写 kernel，它只回答 agent 的问题，读懂程序并给出这段程序的性能界，对一次优化给出判决***。图 1 是这个过程的全貌。
 
-![图 1 TileFoundry 的使用方式](figures/usage.png){ .tf-fig width="600" }
+![图 1 TileFoundry 的使用方式](figures/usage.png)
 
 *图 1　TileFoundry 使用过程中developer，agent和AI compiler的交互过程。*
-{ .tf-figcap }
 
 1. **Agent 与 TileFoundry 通过硬件无关的 HIR，硬件相关runtime twin 两份程序 source-to-source 交互。** HIR 是硬件无关的语义参考程序，描述算什么、每个 value 驻留在哪一层内存、沿 tensor 的哪个轴切分；它可以被 evaluator 直接解释执行，也可以被静态分析，在尚无任何 kernel 实现时便算出 IO 流量、容量与 roofline 下限。runtime twin 是硬件相关的程序，指令选择、barrier、流水级数、warp 分工、拷贝是否异步、寄存器预算如何划分，都在这一层决定；TileFoundry 从不读它的函数体，只调用它。
 
@@ -87,7 +87,7 @@ Agent 与 TileFoundry 之间交互的对象是两份程序：[HIR](https://tile-
 
     > 编译器分析将优化指导、硬件规格与策略评估编码为 context，agent 在需要时发出 query，信息逐步披露。agent 得到的每一句回答，都是针对当前这份程序当场算出来的，能够更快速地引导它一步步收敛到性能极限，同时也减轻了 context 膨胀的代价。
 
-3. **默认拒绝，显式验证。** 一个会静默放行的系统，agent 只能对它的每一句回答都存疑，为了让 agent 敢于做出激进的结构修改，需要把「对不对」和「快不快」的判决分开。TileFoundry 为此设置两层拒绝他们都只判断语义，不看耗时：静态的 [`analyze`](#usage "TileFoundry 使用接口，下一节展开"){ .tf-api } 依据类型与存储位置（placement）推断、内存容量与 IO traffic，在尚无任何 kernel 实现时就有能力拒绝结构上不成立的修改；运行时的 `check` 执行 agent 写下的实现，把每个输出与参考逐位比对。系统有了准确校验语义的能力之后，我们就可以让拒绝变为默认。
+3. **默认拒绝，显式验证。** 一个会静默放行的系统，agent 只能对它的每一句回答都存疑，为了让 agent 敢于做出激进的结构修改，需要把「对不对」和「快不快」的判决分开。TileFoundry 为此设置两层拒绝他们都只判断语义，不看耗时：静态的 [`analyze`](#usage "TileFoundry 使用接口，下一节展开") 依据类型与存储位置（placement）推断、内存容量与 IO traffic，在尚无任何 kernel 实现时就有能力拒绝结构上不成立的修改；运行时的 `check` 执行 agent 写下的实现，把每个输出与参考逐位比对。系统有了准确校验语义的能力之后，我们就可以让拒绝变为默认。
 
     >`analyze` 不给出近似值，算不出结论也不会放行；进入 `check` 这一层时，结构上不成立的修改已被 `analyze` 拒之门外。验证是显式的：每个输出至少声明一个谓词，容差由调用方指定，系统不代为选择默认值。正因为拒绝是确定的，agent 才敢于选择更大的结构变动，敢于走一段暂时变慢的路径。
 
@@ -277,7 +277,6 @@ H200 上本次实测，PyTorch reference 为 **34.67 μs**，CUDA twin 为 **7.6
 回顾 agent 与 TileFoundry 交互的整个过程，在通过了`analyze` 提供的静态代价分析、`check` 检查，完成对 HIR 迭代的收敛之后，进入 runtime twin 程序，优化硬件相关的实现细节，直到最后一步，进行实测获取真机上的性能数据，开始下一轮优化，如此往复。
 
 在今天的大模型中，agent 已经具备了很强的指令跟随能力，因此，有着很强的锚点效应。利用这一行为特点，让 AI compiler 在 agent 实现高性能 kernel 的整个优化路径上，对 machine-independent optimizations、lowering、machine-dependent optimizations 这些在 AI compiler 中有大量研究的环节，动态地给予反馈，能够稳定和加速 agent 写出高性能 kernel 的过程，帮助 aegnt 跳出优化路径上遇到的性能瓶颈。
-{ .tf-lede }
 
 有关使用 TileFoundry 更多有意义的例子，请进一步参考 [tutorial](https://tile-ai.github.io/TileFoundry.github.io/tutorial/migrate/).
 
@@ -307,32 +306,22 @@ TileFoundry 设计之初就对这个目标做过验证（详见 [Qwen3-1.7B](htt
 
 只靠这样一段 prompt，全程无人工干预，agent 与 TileFoundry 互动，给出了五级的 HIR placement，每一级重新 `analyze`，经过十六次 kernel 改动（十六次里有三次测出来更慢，被回滚），得到了下面的性能数字：
 
-<div class="tf-metrics" markdown="1">
-
 | context | 0 | 32 | 1024 | 4096 | 16384 | 32768 | 65536 | 131072 | 262080 |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | tok/s | 278.7 | 277.5 | 271.9 | 257.8 | 255.0 | 239.2 | 212.7 | 174.7 | **128.7** |
 | 距 roofline 下限[^floor] | 2.46x | 2.47x | 2.52x | 2.65x | 2.65x | 2.79x | 3.05x | 3.52x | **4.33x** |
 
-</div>
-
 [^floor]: roofline 下限是按 H200 公布的 4.8 TB/s HBM 带宽，除以该长度下每 token 实测搬运的字节数算出的吞吐；「距 roofline 下限」是实测吞吐距这个下限的倍数，越接近 1 越好。
-
-///Footnotes Go Here///
 
 我们进一步检验了 agent 生成的 kernel，在序列长度的每一处都是一个结果正确的 mega kernel，只在最后一行，由于一套 attention 并行方案要同时服务相差了 8000 倍的序列长度，出现了性能随序列长度的退化。在这个点上，为了进一步改善性能我们观察 agent 给出的实现，继续追问了三个问题：（1）时间是不是主要花在 attention 上；如果是，就把这一层单独拉成一个 module，按长度 dispatch——序列短时按 query head 切，长时按 context 切——再放回 step 里；（2）为什么 256K 比其余差这么多；（3）为什么这段没有跑在 wgmma 上。
 
 最终我们得到了下面这张与 sglang（默认打开全部选项，包括：`fa3`、`flashinfer_cutlass` MoE、CUDA graph、overlap schedule，两侧都不开 speculative decoding）的性能对照表：
-
-<div class="tf-metrics" markdown="1">
 
 | context | 0 | 32 | 1024 | 4096 | 16384 | 32768 | 65536 | 131072 | 262080 |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | **ours, tok/s** | **288.8** | **287.4** | **282.6** | **283.1** | **277.4** | **273.5** | **266.0** | **254.1** | **231.6** |
 | SGLang，tok/s | — | 294.8 | 293.6 | 292.3 | 291.4 | 288.7 | 283.2 | 288.2 | 278.2 |
 | 距 roofline 下限[^floor] | **2.37x** | **2.39x** | **2.42x** | **2.41x** | **2.44x** | **2.44x** | **2.44x** | **2.42x** | **2.41x** |
-
-</div>
 
 ### Agent loop 中的 TileFoundry { #recap }
 
@@ -378,7 +367,6 @@ TileFoundry 设计之初就对这个目标做过验证（详见 [Qwen3-1.7B](htt
     `next_h` 在每个线程的 `rmem` 中产生，同时进入本线程的 `local_sq`；`reshard` 去掉 thread split 后，256 份局部平方和在 CTA 内归并，下一层 RMSNorm 直接使用 `sum_sq`。这对应 TileLang 中[`residual` 同时产生 hidden row 与平方和](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/gen_kernel.py#L353-L367)，[`rmsnorm` 随后直接消费它](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/gen_kernel.py#L339-L350)。同一 placement 也解释了另一个反直觉选择：kernel 让每个 CTA 重复计算 residual、router top-k 和部分 convolution，以少量重复计算换掉 grid barrier。[最终代码对这个取舍的说明](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/mega_kernel.py#L19-L23)保留在程序开头。
 
 这三点构成了我们想要的分工：**compiler 不必包办搜索与代码生成，而要持续提供可以信任的事实**；agent 则利用这些事实提出候选、改写结构并完成实现。反馈足够及时、拒绝足够确定、优化语义信息足够完整时，agent 的价值才能跳出只是把一组参数搜索得更快。
-{ .tf-lede }
 
 ## Looking Ahead { #outlook }
 

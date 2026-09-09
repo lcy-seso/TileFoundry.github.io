@@ -1,18 +1,18 @@
 @import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=Cascadia+Code:ital,wght@0,200..700;1,200..700&display=swap");
 
 :root {
-  --tf-paper: #f3ede1;
-  --tf-paper-2: #e8e1d1;
-  --tf-ink: #191a16;
-  --tf-muted: #7c7565;
+  --tf-paper: #f4f2ed;
+  --tf-paper-2: #eae7e0;
+  --tf-ink: #242622;
+  --tf-muted: #6d6e68;
   --tf-red: #c43c19;
   --tf-red-dark: #9f2d12;
   --tf-teal: #1a6e63;
   --tf-blue: #2f5d8c;
   --tf-graphite: #4a4842;
   --tf-amber: rgba(255, 196, 112, 0.72);
-  --tf-line: rgba(25, 26, 22, 0.16);
-  --tf-line-soft: rgba(25, 26, 22, 0.07);
+  --tf-line: rgba(36, 38, 34, 0.14);
+  --tf-line-soft: rgba(36, 38, 34, 0.05);
   --tf-display: "Bricolage Grotesque", "PingFang SC", "Microsoft YaHei", sans-serif;
   --tf-body: "Hanken Grotesk", "PingFang SC", "Microsoft YaHei", sans-serif;
   --tf-mono: "Cascadia Code NF", "Cascadia Code", ui-monospace, monospace;
@@ -27,7 +27,7 @@
   --md-primary-fg-color--light: #db6c4e;
   --md-primary-fg-color--dark: var(--tf-red-dark);
   --md-accent-fg-color: var(--tf-red);
-  --md-typeset-a-color: var(--tf-red);
+  --md-typeset-a-color: #0969da;
   --md-code-bg-color: var(--tf-paper-2);
   --md-code-fg-color: var(--tf-ink);
 }
@@ -37,7 +37,7 @@ body,
 .md-container,
 .md-main {
   background-color: var(--md-default-bg-color);
-  background-image: radial-gradient(var(--tf-line-soft) 1px, transparent 1.5px);
+  background-image: radial-gradient(rgba(36, 38, 34, 0.04) 0.8px, transparent 1px);
   background-size: 26px 26px;
 }
 
@@ -225,8 +225,8 @@ body,
 
 .md-typeset p {
   margin: 0.3em 0 0.85em;
-  font-size: 0.8rem;
-  line-height: 1.62;
+  font-size: 0.82rem;
+  line-height: 1.68;
 }
 
 .md-typeset a {
@@ -236,17 +236,14 @@ body,
 }
 
 .md-typeset strong {
-  color: var(--md-default-fg-color);
-  font-weight: 700;
-  text-decoration: underline;
-  text-decoration-color: var(--tf-amber);
-  text-decoration-thickness: 3px;
-  text-underline-offset: 2px;
+  color: var(--tf-ink);
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .md-typeset em {
   color: var(--tf-teal);
-  font-style: normal;
+  font-style: italic;
   font-weight: 700;
 }
 
@@ -255,15 +252,12 @@ body,
    into the ink: same signal, a fraction of the contrast. */
 .md-typeset strong em,
 .md-typeset em strong {
-  padding: 0.06em 0.3em;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--tf-red), transparent 89%);
-  color: var(--tf-red-dark);
-  font-style: normal;
-  font-weight: 700;
+  padding: 0;
+  background: none;
+  color: #b83224;
+  font-style: italic;
+  font-weight: 800;
   text-decoration: none;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
 }
 
 .md-typeset strong:has(em) { text-decoration: none; }
@@ -278,19 +272,20 @@ body,
 }
 
 .md-typeset blockquote {
-  margin: 1.3em 0;
-  padding: 0.08em 0 0.08em 1.05em;
-  border-left: 3px solid var(--tf-line);
-  color: var(--tf-muted);
-  font-size: 0.72rem;
-  font-style: italic;
+  margin: 1.25rem 0;
+  padding: 0.8rem 1rem;
+  border-left: 3px solid #315f83;
+  background: color-mix(in srgb, #315f83, transparent 94%);
+  color: #4a4842;
+  font-size: 0.8rem;
+  font-style: normal;
 }
 
-.md-typeset blockquote strong {
-  background: transparent;
-  color: var(--tf-blue);
-  font-family: var(--tf-mono);
-  text-decoration: none;
+.md-typeset blockquote p {
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: 1.62;
 }
 
 /* Lists take the body's size. `p` is set to 0.8rem while .md-typeset itself is
@@ -300,8 +295,8 @@ body,
    compounds off it. */
 .md-typeset ul,
 .md-typeset ol {
-  font-size: 0.8rem;
-  line-height: 1.62;
+  font-size: 0.82rem;
+  line-height: 1.68;
 }
 
 .md-typeset ul {
@@ -790,20 +785,6 @@ body,
   .tf-session-player__throughput small { grid-column: 1 / -1; text-align: left; }
 }
 
-/* Blog figures: centred image, centred caption underneath. */
-.md-typeset img.tf-fig {
-  display: block;
-  margin: 1.4rem auto 0.5rem;
-}
-
-.md-typeset p.tf-figcap {
-  margin-top: 0;
-  text-align: center;
-  color: var(--tf-muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
 /* Tables take the width their content needs, and sit centred when that is less
    than the column. Material forces `width: 100%` on the table it wraps at
    runtime, so both the wrapper and the bare table are overridden here. */
@@ -821,158 +802,7 @@ body,
   margin-right: auto;
 }
 
-/* A figure whose detail needs the whole column. */
-.md-typeset img.tf-fig-wide {
-  width: 100%;
-  max-width: 100%;
-}
-
-/* Sentence-level highlight. Material paints `mark` with a ground, so the class
-   clears it and carries the emphasis in the ink instead. */
-.md-typeset mark.tf-hl,
-.md-typeset em.tf-hl {
-  background: none;
-  color: var(--tf-red-dark);
-}
-
-/* Article subtitle: one line under the h1, carrying the thesis. */
-.md-typeset p.tf-subtitle {
-  margin-top: -0.6rem;
-  margin-bottom: 1.6rem;
-  padding-bottom: 0.9rem;
-  border-bottom: 1px solid var(--tf-line-soft);
-  font-family: var(--tf-display);
-  font-size: 1.05rem;
-  font-weight: 500;
-  line-height: 1.5;
-  color: var(--tf-muted);
-}
-
-/* TileFoundry's own interfaces: the CLI, its commands, and the two programs.
-   Marked on first mention so a product surface is distinguishable from prose,
-   and linked to the section that puts it to work. Bold italic mono in graphite
-   over a thick blue band is the one combination the rest of the palette leaves
-   free: strong carries amber, em carries teal, links carry red, code carries a
-   ground. */
-.md-typeset a.tf-api {
-  color: var(--tf-graphite);
-  font-family: var(--tf-mono);
-  font-size: 0.86em;
-  font-style: italic;
-  font-weight: 700;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--tf-blue), transparent 52%);
-  text-decoration-thickness: 5px;
-  text-underline-offset: 1px;
-  white-space: nowrap;
-}
-
-.md-typeset a.tf-api:hover,
-.md-typeset a.tf-api:focus {
-  color: var(--tf-blue);
-  text-decoration-color: color-mix(in srgb, var(--tf-blue), transparent 20%);
-}
-
-/* A term already written as code keeps one treatment, not two: no ground of its
-   own, and no second underline inside the one the link already draws. */
-.md-typeset a.tf-api > code {
-  padding: 0;
-  background: none;
-  color: inherit;
-  font-size: 1em;
-  font-style: inherit;
-  font-weight: inherit;
-  text-decoration: none;
-}
-
-/* Prose links say where they lead: § jumps to a section of this page, ↗ leaves
-   it. Scoped to p/li/td so heading permalinks, the card grid and the language
-   switch keep their own affordances; .tf-api marks already carry a stronger
-   one, and .md-button is a button, not prose.
-
-   `display: inline-block` keeps the marker out of the link's underline --
-   text-decoration propagates to inline descendants and cannot be switched off
-   on them, but it is not drawn across an inline-block. */
-.md-typeset :is(p, li, td) a:not(.headerlink):not(.tf-api):not(.md-button):not(.footnote-ref):not(.footnote-backref)::after {
-  display: inline-block;
-  margin-left: 0.14em;
-  color: var(--tf-muted);
-  content: "↗";
-  font-size: 0.8em;
-  font-weight: 400;
-  font-style: normal;
-  vertical-align: 0.1em;
-}
-
-.md-typeset :is(p, li, td) a[href^="#"]:not(.headerlink):not(.tf-api):not(.md-button):not(.footnote-ref):not(.footnote-backref)::after {
-  content: "§";
-  vertical-align: 0;
-}
-
-/* A section's thesis, set as a panel rather than a paragraph: the tinted ground
-   separates it from prose and the 56px red bar is the same device h1 and
-   .md-tabs use. Left borders are spoken for -- red means heading, grey means
-   blockquote -- so this one carries its rule on top. The body face is chosen
-   over the display face because only it has a real italic in the import; a
-   slanted Latin run beside upright CJK is the reason the size stays near the
-   body's, rather than heading-sized. */
-.md-typeset p.tf-lede {
-  position: relative;
-  margin: 1.7rem 0;
-  padding: 1.45rem 1.4rem 1.25rem;
-  background: var(--tf-paper-2);
-  color: var(--tf-graphite);
-  font-family: var(--tf-body);
-  font-size: 0.9rem;
-  font-style: italic;
-  font-weight: 500;
-  line-height: 1.66;
-}
-
-.md-typeset p.tf-lede::before {
-  position: absolute;
-  top: 0;
-  left: 1.4rem;
-  width: 56px;
-  height: 3px;
-  background: var(--tf-red);
-  content: "";
-}
-
-@media screen and (max-width: 44.9375em) {
-  .md-typeset p.tf-lede {
-    padding: 1.2rem 1rem 1rem;
-    font-size: 0.86rem;
-  }
-  .md-typeset p.tf-lede::before { left: 1rem; }
-}
-
-/* The `tilefoundry` command and its subcommand inside a code block. Cyan is
-   Atom One Light's, the palette the code tokens above already follow; the
-   subcommand sits a step back in graphite, subordinate to the command it
-   qualifies. Applied by the hooks/highlight_tilefoundry.py build hook, since
-   Pygments leaves a command name untagged and there is no token class to
-   select. */
-.md-typeset pre .tf-cmd {
-  color: #0184bc;
-  font-style: italic;
-}
-
-.md-typeset pre .tf-subcmd {
-  color: var(--tf-graphite);
-  font-style: italic;
-}
-
-/* A question or claim standing on its own line. Placement only: the emphasis
-   inside the paragraph already carries its own colour. */
-.md-typeset p.tf-center {
-  margin: 1.55rem 0;
-  text-align: center;
-}
-
-/* Footnotes rendered in the flow, at the `///Footnotes Go Here///` marker,
-   rather than at the foot of the page. There they are a table note, so the rule
-   the extension emits goes away and the block sits tight under what it explains. */
+/* Standard Markdown footnotes remain quiet at the foot of the page. */
 .md-typeset .footnote {
   margin: 0.5rem 0 1.4rem;
   color: var(--tf-muted);
@@ -984,27 +814,3 @@ body,
 .md-typeset .footnote ol > li { margin: 0.2em 0; }
 .md-typeset .footnote p { font-size: 1em; line-height: 1.55; }
 .md-typeset .footnote-backref { color: var(--tf-muted); }
-
-/* Metric tables: one long row label against nine short numbers. `width: 1%`
-   with `nowrap` shrinks the label column to exactly its single-line width, and
-   the table at full width hands the rest to the numeric columns, which take
-   tighter side padding so nine of them fit without a scrollbar. */
-.tf-metrics table:not([class]) {
-  width: 100%;
-  font-size: 0.68rem;
-}
-
-.tf-metrics th { font-size: 0.72rem; }
-
-.tf-metrics th:first-child,
-.tf-metrics td:first-child {
-  width: 1%;
-  padding-right: 1.1rem;
-  white-space: nowrap;
-}
-
-.tf-metrics th:not(:first-child),
-.tf-metrics td:not(:first-child) {
-  padding-left: 0.3rem;
-  padding-right: 0.3rem;
-}
