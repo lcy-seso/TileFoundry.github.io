@@ -340,17 +340,17 @@ TileFoundry 设计之初就对这个目标做过验证（详见 [Qwen3-1.7B](htt
 
 1. **`analyze` 为性能差距提供独立于实现的归因。**
 
-> analyze 给出的静态分析让 agent 找到了 attention 针对不同序列长度的优化策略：短 context 沿 query head 并行，省去跨 worker 的 softmax 合并；长 context 沿 context 并行，让更多 CTA 分担不断增长的 KV cache。`analyze` 将尾块 padding 一并计入，在 2048 附近算出了两条代价曲线的交点，[最终 dispatch 据此写入 HIR](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/attention.py#L247-L262)。
+    > analyze 给出的静态分析让 agent 找到了 attention 针对不同序列长度的优化策略：短 context 沿 query head 并行，省去跨 worker 的 softmax 合并；长 context 沿 context 并行，让更多 CTA 分担不断增长的 KV cache。`analyze` 将尾块 padding 一并计入，在 2048 附近算出了两条代价曲线的交点，[最终 dispatch 据此写入 HIR](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/attention.py#L247-L262)。
 
-1. **`check` 为大幅改写保留一个不动的正确性锚点。** 
+2. **`check` 为大幅改写保留一个不动的正确性锚点。** 
 
-> 从 52 层、3212 次 launch 到一个 mega kernel 的过程不是一次局部调参，而是重新安排 stage、barrier、数据驻留和并行轴。若每次修改都只能靠最终 token 是否看起来合理来判断，agent 总是倾向于安全的策略：尽量少的改动。`check` 将 authored HIR 固定为语义契约，无论 runtime twin 融合到什么程度，都回到同一组输出和判据上比较。
-> 
-> 这次实验中 short-context 路径的 59 个输出全部通过，端到端生成与 Transformers 连续 64 个 token 相同；[检查范围和结果随实现一起保留](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/README.md#L251-L266)。遇到 evaluator 尚不能覆盖的 long-context Split slice，`check` 明确拒绝，而不是把没有验证过的路径当作 PASS。可靠的失败不是开发过程的阻碍，它扩大了 agent 可以安全探索的范围。
+    > 从 52 层、3212 次 launch 到一个 mega kernel 的过程不是一次局部调参，而是重新安排 stage、barrier、数据驻留和并行轴。若每次修改都只能靠最终 token 是否看起来合理来判断，agent 总是倾向于安全的策略：尽量少的改动。`check` 将 authored HIR 固定为语义契约，无论 runtime twin 融合到什么程度，都回到同一组输出和判据上比较。
+    > 
+    > 这次实验中 short-context 路径的 59 个输出全部通过，端到端生成与 Transformers 连续 64 个 token 相同；[检查范围和结果随实现一起保留](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/README.md#L251-L266)。遇到 evaluator 尚不能覆盖的 long-context Split slice，`check` 明确拒绝，而不是把没有验证过的路径当作 PASS。可靠的失败不是开发过程的阻碍，它扩大了 agent 可以安全探索的范围。
 
 3. **HIR 类型系统把跨 stage 的数据关系变成优化线索。**
 
-> residual add 产生的 hidden row 同时也是下一层 RMSNorm 的输入。若两个 stage 分开实现，residual 会先写回，RMSNorm 再重新读取整行并计算平方和。按最终 TileLang kernel 的执行方式写成 HIR，每个 CTA 保留完整 hidden row，CTA 内的 256 个线程各自在 `rmem` 中处理 11 个元素：
+    > residual add 产生的 hidden row 同时也是下一层 RMSNorm 的输入。若两个 stage 分开实现，residual 会先写回，RMSNorm 再重新读取整行并计算平方和。按最终 TileLang kernel 的执行方式写成 HIR，每个 CTA 保留完整 hidden row，CTA 内的 256 个线程各自在 `rmem` 中处理 11 个元素：
 
     ```python
     with Mesh(("cta",), layout=(132,), names=("x",)) as cta:
@@ -381,10 +381,9 @@ TileFoundry 设计之初就对这个目标做过验证（详见 [Qwen3-1.7B](htt
             ) * gamma_r
     ```
 
-    `next_h` 在每个线程的 `rmem` 中产生，同时进入本线程的 `local_sq`；`reshard` 去掉 thread split 后，256 份局部平方和在 CTA 内归并，下一层 RMSNorm 直接使用 `sum_sq`。这对应 TileLang 中[`residual` 同时产生 hidden row 与平方和](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/gen_kernel.py#L353-L367)，[`rmsnorm` 随后直接消费它](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/gen_kernel.py#L339-L350)。同一 placement 也解释了另一个反直觉选择：kernel 让每个 CTA 重复计算 residual、router top-k 和部分 convolution，以少量重复计算换掉 grid barrier。[最终代码对这个取舍的说明](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/mega_kernel.py#L19-L23)保留在程序开头。
+    > `next_h` 在每个线程的 `rmem` 中产生，同时进入本线程的 `local_sq`；`reshard` 去掉 thread split 后，256 份局部平方和在 CTA 内归并，下一层 RMSNorm 直接使用 `sum_sq`。这对应 TileLang 中[`residual` 同时产生 hidden row 与平方和](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/gen_kernel.py#L353-L367)，[`rmsnorm` 随后直接消费它](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/gen_kernel.py#L339-L350)。同一 placement 也解释了另一个反直觉选择：kernel 让每个 CTA 重复计算 residual、router top-k 和部分 convolution，以少量重复计算换掉 grid barrier。[最终代码对这个取舍的说明](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/mega_kernel.py#L19-L23)保留在程序开头。
 
-这三点构成了我们想要的分工：**compiler 不必包办搜索与代码生成，而要持续提供可以信任的事实**；**agent 则利用这些事实提出候选、改写结构并完成实现**。
-反馈足够及时、拒绝足够确定、优化语义信息足够完整时，agent 的价值才能跳出只是把一组参数搜索得更快。
+这三点构成了我们想要的分工：**compiler 不必包办搜索与代码生成，而要持续提供可以信任的事实**；**agent 则利用这些事实提出候选、改写结构并完成实现**。反馈足够及时、拒绝足够确定、优化语义信息足够完整时，agent 的价值才能跳出只是把一组参数搜索得更快。
 { .tf-lede }
 
 ## Looking Ahead { #outlook }

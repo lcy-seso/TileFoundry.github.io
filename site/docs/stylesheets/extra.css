@@ -282,8 +282,16 @@ body,
   padding: 0.08em 0 0.08em 1.05em;
   border-left: 3px solid var(--tf-line);
   color: var(--tf-muted);
-  font-size: 0.72rem;
+  font-size: 0.745rem;
   font-style: italic;
+}
+
+/* The paragraph inside carries the quote's size. `.md-typeset p` sets 0.8rem
+   directly on the element, and a rule on the child beats a value inherited from
+   the parent, so without this every blockquote renders at body size. */
+.md-typeset blockquote p {
+  font-size: 1em;
+  line-height: 1.66;
 }
 
 .md-typeset blockquote strong {
