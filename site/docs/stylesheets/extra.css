@@ -935,7 +935,12 @@ body,
    with `nowrap` shrinks the label column to exactly its single-line width, and
    the table at full width hands the rest to the numeric columns, which take
    tighter side padding so nine of them fit without a scrollbar. */
-.tf-metrics table:not([class]) { width: 100%; }
+.tf-metrics table:not([class]) {
+  width: 100%;
+  font-size: 0.68rem;
+}
+
+.tf-metrics th { font-size: 0.72rem; }
 
 .tf-metrics th:first-child,
 .tf-metrics td:first-child {

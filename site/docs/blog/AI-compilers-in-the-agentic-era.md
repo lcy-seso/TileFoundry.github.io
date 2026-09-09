@@ -287,7 +287,7 @@ H200 上本次实测，PyTorch reference 为 **34.67 μs**，CUDA twin 为 **7.6
 
 TileFoundry 设计之初就对这个目标做过验证（详见 [Qwen3-1.7B](https://github.com/tile-ai/TileFoundry/tree/main/examples) 等例子）。在 v0.0.2 release 中，我们尝试了一个更加复杂的模型：[Nemotron-3.5-Lightning-30B-A3B](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16)，一个 52 层的 Mamba2、attention、MoE 混合模型。
 
-### decode in a single mega kernel { #mega }
+### LLM Decoding in a Mega Kernel { #mega }
 
 任务的目标是把整个 decode step 写成一份 HIR `@func` program 和一个 TileLang cooperative kernel：输入一个 token id，输出下一个 token id，设备上只有一次 launch。stage 之间的边界是 mesh 级的 barrier，而不是以 `@func` 作为边界，这样 HIR 程序的语义就等价于我们最终希望产生的 mega kernel，而`check` 比对的就是这份真正在跑的 kernel 是否产生了正确的生成结果。下表记录了这次实验的基本信息：
 
@@ -334,6 +334,26 @@ TileFoundry 设计之初就对这个目标做过验证（详见 [Qwen3-1.7B](htt
 
 </div>
 
-kernel 在九个长度区间上性能consistent，不再有哪个长度格外糟。
+### Agent loop 中的 TileFoundry { #recap }
 
-## Where we are going { #outlook }
+上面这个端到端的例子除最初的 prompt 我们仍然增加了一次人工的追问。最终，生成的 kernel 在九个长度区间上性能一致，不再有某个序列区间的性能格外糟糕，在短 context 上达到 SGLang 性能的 97.5%，长 context（262080）上，达到 83.2%。这个任务里，我们对 TileFoundry 给出的设计选择有以下观察：
+
+* **`analyze` 在没有 kernel 实现时根据静态分析给出量化的代价预估。** 在传统 compiler 中，cost model 强耦合于 compiler 内部的各种 pass 变化，分散于代码 lowering 的多个语义层级，难以被 agent 直接使用。agent 让学习各种 DSL 和 IR 语言，补上各种语言之间的代码生成变得极为代价低廉且可获得，把cost 分析与 lowering 分开，让 cost 分析能够被单独调用，成为 agent 最先用到的部分，从而缩小 agent 的随机探索，加速性能优化的收敛。在上面这个端到端 mega kernel的例子里面，agent 探索出的五个改变了程序中 tile 在内存层级上位置放置位置的 HIR 程序版本，都依赖 analyze 逐个评估给出可行性和优化方向的判断。
+
+* **`check` 守护正确性。** 
+
+* **[类型系统](https://tile-ai.github.io/TileFoundry.github.io/spec/types/)帮助 agent 提前发现切分策略。** 
+
+## Looking Ahead { #outlook }
+
+我们在 [TileOPs](https://github.com/tile-ai/TileOPs) 项目中积极拥抱了 agent 去进行高性能算子的生成和优化，发现这个过程仍然存在性能难以稳定逼近硬件极限、陷入瓶颈之后找不到下一步的优化方向、agent 不善于回退和做大幅度的结构改进等问题。同时，**agent 给一向确定的系统和以可理解为目标的开发方式，引入了随机性和一个不可解释的黑盒。**
+
+TileFoundry 来自我们在这个过程中对 agent 写高性能 kernel 这个任务的大量观察和实验：为给定硬件生成高性能 kernel 是一个知识密集、决策密集的动态优化过程。agent 在整条优化路径上，靠工具调用把推理 ground 到客观事实，用来纠正思维链展开带来的幻觉、避免行为发散、加速优化收敛。工具调用带来的动态反馈和验证是 agent 工作的关键。
+
+过去，AI compilers 自成封闭的系统，没有任何与外部工具交互的需求。另一方面，AI compilers 面对复杂的决策空间，不断演变的硬件架构，end-to-end 完成程序行为和硬件的建模和互相映射，变得愈发复杂，这些复杂性最终体现为一个可编程系统实现的复杂性和一个可编程系统中用户的认知负担。
+
+但，当一个可编程系统的用户变为 agent 后，agent 的背后是 GPT 模型，这决定了它非常擅长在给定的锚点附近做插值。只要锚点给出了优化的方向，agent 就能借助算力暴力搜索这些插值点，找到大量的性能改进。于是，我们能够把过去 AI compilers 里难解的那个优化问题——通过程序变换提升性能——转换成一个搜索、实测、按反馈再生成代码的过程。而要最大化 agent 带来的生产力，这个过程就必须尽可能少地引入人工干预。
+
+回到我们一开始的问题。我们相信，agent 足以学会任何可编程系统的 DSL/IR，这时 AI compiler 中围绕着类型系统，编码了大量的语义分析，校验，以及对底层硬件系统的量化建模，是引导 agent 优化的重要锚定点，而 agent 的生成能力，也能帮助减轻 AI compilers 对完备性，在更大的context下寻找全局优化的建模和求解压力。
+
+TileFoundry 正是沿着这个目标，探索 agent 与 compiler 边界的项目，我们依然处于积极的探索和验证之中。
