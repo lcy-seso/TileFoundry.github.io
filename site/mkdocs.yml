@@ -9,7 +9,7 @@ theme:
   language: en
   font:
     text: Hanken Grotesk
-    code: Space Mono
+    code: Cascadia Code
   palette:
     scheme: default
     primary: red
@@ -64,7 +64,9 @@ markdown_extensions:
       toc_depth: 4
 
 extra_css:
-  - stylesheets/extra.css
+  # The query is a cache buster: this path carries no build fingerprint the
+  # way the theme's own assets do, so bump it whenever the stylesheet changes.
+  - stylesheets/extra.css?v=20260903
 
 nav:
   - Home: index.md
@@ -73,8 +75,9 @@ nav:
       - AI Compilers in the Agentic Era: blog/AI-compilers-in-the-agentic-era.md
   - Tutorial:
       - Overview: tutorial/index.md
-      - Describe a model: tutorial/migrate.md
-      - Make it fast: tutorial/optimize.md
+      - Describing a published step: tutorial/migrate.md
+      - Making one step fast: tutorial/optimize.md
+      - Putting it all to work: tutorial/showcase.md
   - Specifications:
       - Architecture: spec/architecture.md
       - Core IR: spec/core-ir.md
@@ -95,6 +98,7 @@ nav:
       - Visitor registry: spec/visitor-registry.md
       - Command-line interface: spec/cli.md
       - Code organization: spec/code-organization.md
+      - Spec rules: SPEC-RULES.md
   - Development: develop.md
 
 copyright: Copyright &copy; 2026 TileFoundry contributors

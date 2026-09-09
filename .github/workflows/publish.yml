@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: TileFoundry branch, tag, or SHA to render
+        description: One-off TileFoundry branch, tag, or SHA; empty renders the ref pinned in upstream-ref
         required: false
-        default: main
+        default: ""
         type: string
 
 permissions:
@@ -20,7 +20,6 @@ concurrency:
 
 env:
   UPSTREAM_REPOSITORY: tile-ai/TileFoundry
-  UPSTREAM_REF: ${{ inputs.source_ref || 'main' }}
 
 jobs:
   build:
@@ -31,11 +30,25 @@ jobs:
         with:
           path: pages
 
+      - name: Resolve the TileFoundry ref to render
+        id: source
+        run: |
+          ref='${{ inputs.source_ref }}'
+          if [[ -z "$ref" ]]; then
+            ref="$(grep -vE '^[[:space:]]*(#|$)' pages/upstream-ref | head -1 | tr -d '[:space:]')"
+          fi
+          if [[ -z "$ref" ]]; then
+            printf 'No source_ref given and pages/upstream-ref names none\n' >&2
+            exit 1
+          fi
+          printf 'Rendering TileFoundry %s\n' "$ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
       - name: Checkout TileFoundry source
         uses: actions/checkout@v7
         with:
           repository: ${{ env.UPSTREAM_REPOSITORY }}
-          ref: ${{ env.UPSTREAM_REF }}
+          ref: ${{ steps.source.outputs.ref }}
           path: upstream
           persist-credentials: false
           token: ${{ secrets.TILEFOUNDRY_READ_TOKEN || github.token }}
@@ -57,7 +70,8 @@ jobs:
         id: assemble
         run: |
           assembled_source="$(mktemp -d)/source"
-          bash pages/scripts/assemble-site.sh upstream pages/site "$assembled_source"
+          bash pages/scripts/assemble-site.sh upstream pages/site "$assembled_source" \
+            '${{ steps.source.outputs.ref }}'
           echo "source=$assembled_source" >> "$GITHUB_OUTPUT"
 
       - name: Build documentation site
