@@ -6,6 +6,8 @@ repo_name: tile-ai/TileFoundry
 
 theme:
   name: material
+  logo: assets/tilefoundry-logo.png
+  favicon: assets/tilefoundry-logo.png
   language: en
   font:
     text: Hanken Grotesk
