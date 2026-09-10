@@ -76,7 +76,7 @@ Agent 与 TileFoundry 之间交互的对象是两份程序：[HIR](https://tile-
 
 ![图 1 TileFoundry 的使用方式](figures/usage.png){ .tf-fig width="600" }
 
-*图 1　TileFoundry 使用过程中developer，agent和AI compiler的交互过程。*
+图 1　TileFoundry 使用过程中developer，agent和AI compiler的交互过程。
 { .tf-figcap }
 
 1. **Agent 与 TileFoundry 通过硬件无关的 HIR，硬件相关runtime twin 两份程序 source-to-source 交互。** HIR 是硬件无关的语义参考程序，描述算什么、每个 value 驻留在哪一层内存、沿 tensor 的哪个轴切分；它可以被 evaluator 直接解释执行，也可以被静态分析，在尚无任何 kernel 实现时便算出 IO 流量、容量与 roofline 下限。runtime twin 是硬件相关的程序，指令选择、barrier、流水级数、warp 分工、拷贝是否异步、寄存器预算如何划分，都在这一层决定；TileFoundry 从不读它的函数体，只调用它。
@@ -274,7 +274,12 @@ for name, fn in [("PyTorch reference", reference), ("CUDA twin", runtime.chain)]
 
 H200 上本次实测，PyTorch reference 为 **34.67 μs**，CUDA twin 为 **7.68 μs**，确认获得了约 **4.51×** 的性能加速。
 
-回顾 agent 与 TileFoundry 交互的整个过程，在通过了`analyze` 提供的静态代价分析、`check` 检查，完成对 HIR 迭代的收敛之后，进入 runtime twin 程序，优化硬件相关的实现细节，直到最后一步，进行实测获取真机上的性能数据，开始下一轮优化，如此往复。
+回顾 agent 与 TileFoundry 交互的整个过程，在通过了`analyze` 提供的静态代价分析、`check` 检查，完成对 HIR 迭代的收敛之后，进入 runtime twin 程序，优化硬件相关的实现细节，直到最后一步，进行实测获取真机上的性能数据，开始下一轮优化，如此往复。图 2 进一步以优化 attention 为例展示这个过程：agent 与 TileFoundry 通过source-to-source 方式交互，使用`analyze`, `check` 对一个给定的优化方案进行分析和验证。
+
+![图 2 TileFoundry 优化 attention 的 workflow](figures/workflow.png)
+
+图 2　使用 TileFoundry 优化 attention 的过程示意图。
+{ .tf-figcap }
 
 在今天的大模型中，agent 已经具备了很强的指令跟随能力，因此，有着很强的锚点效应。利用这一行为特点，让 AI compiler 在 agent 实现高性能 kernel 的整个优化路径上，对 machine-independent optimizations、lowering、machine-dependent optimizations 这些在 AI compiler 中有大量研究的环节，动态地给予反馈，能够稳定和加速 agent 写出高性能 kernel 的过程，帮助 aegnt 跳出优化路径上遇到的性能瓶颈。
 { .tf-lede }
