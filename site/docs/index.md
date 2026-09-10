@@ -6,8 +6,6 @@
 
 A tile-based, agentic platform for automatic high-performance program generation across hardware.
 
-[Read the tutorial](tutorial/index.md){ .md-button .md-button--primary }
-
 </div>
 
 </div>
@@ -15,19 +13,19 @@ A tile-based, agentic platform for automatic high-performance program generation
 ## Start here { .tf-section-heading }
 
 <div class="tf-card-grid">
-  <a class="tf-card" href="tutorial/migrate/">
+  <a class="tf-card" href="tutorial/">
     <span class="tf-card-index">01</span>
-    <strong>Author a reference</strong>
-    <small>Describe a published model as readable, verifiable HIR.</small>
+    <strong>Tutorial</strong>
+    <small>Describe a published model, build a runtime twin, and iterate.</small>
   </a>
-  <a class="tf-card" href="tutorial/optimize/">
+  <a class="tf-card" href="blog/AI-compilers-in-the-agentic-era/">
     <span class="tf-card-index">02</span>
-    <strong>Make it fast</strong>
-    <small>Build a runtime twin, compare it to the reference, and iterate.</small>
+    <strong>Blog</strong>
+    <small>Why compiler feedback matters when the programmer is an agent.</small>
   </a>
   <a class="tf-card" href="spec/architecture/">
     <span class="tf-card-index">03</span>
-    <strong>Understand the system</strong>
-    <small>Follow the compiler pipeline and the contracts that shape it.</small>
+    <strong>Specifications</strong>
+    <small>Read the HIR, analysis, runtime, and evaluator contracts.</small>
   </a>
 </div>

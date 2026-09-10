@@ -12,7 +12,7 @@ LLM 的训练与推理是一类 high-level 并行计算任务。要让一个 LLM
 
 **第二个难题是代码生成。** 即便已经拥有一个分析能力足够强的 scheduler，能够判断和评估各种调度策略，把它们完备地转换为硬件上可以运行的代码、覆盖各种 corner case，这一步的工程工作量依然不容忽视。
 
-现代 compiler 中分量最重的部分是 **code optimizations**，即在语义不变的前提下把程序从 A 变换到 B，使 B 在某个给定的独立指标上优于 A。为求解上述两个难题，AI compiler 在程序分析、形式化验证与性能建模上发展出了完整的设计、关键技术与配套工具：以量化的方法研究 kernel 性能，以围绕类型的形式化方法推断和验证程序语义。这些定量、形式化的方法，是 compiler 在研究 scheduling 求解与代码生成的过程中形成的最丰富的知识。
+现代 compiler 中**分量最重的部分是 code optimizations**，即在语义不变的前提下把程序从 A 变换到 B，使 B 在某个给定的独立指标上优于 A。为求解上述两个难题，AI compiler 在程序分析、形式化验证与性能建模上发展出了完整的设计、关键技术与配套工具：以量化的方法研究 kernel 性能，以围绕类型的形式化方法推断和验证程序语义。这些定量、形式化的方法，是 compiler 在研究 scheduling 求解与代码生成的过程中形成的最丰富的知识。
 
 与之相对，coding agent 展现出的代码理解与代码生成能力，为这两个难题提供了另一种解法。性能建模的解析解虽然难求，但候选策略可以枚举、优劣可以实测，于是它能通过“先搜索再判定”的方式，转化为一个纯粹的计算问题——用算力和执行效率代替解析求解。而算力与执行力恰是 coding agent 最充裕的资源。GPT 模型在训练过程中见过这个世界上几乎所有能被写下来的知识，coding agent 的出现让代码生成变得极易获得；具备调用工具的能力之后，agent 还能从环境获得客观反馈，据此推断下一步的行动方向。假设算力无限，agent 的执行力足以将一个 kernel 性能空间中所有排列组合逐一生成，再通过实测筛选出性能更优的实现。
 
@@ -77,7 +77,9 @@ Agent 与 TileFoundry 之间交互的对象是两份程序：[HIR](https://tile-
 
 ![图 1 TileFoundry 的使用方式](figures/usage.png)
 
-*图 1　TileFoundry 使用过程中developer，agent和AI compiler的交互过程。*
+/// caption
+图 1　TileFoundry 使用过程中developer，agent和AI compiler的交互过程。
+///
 
 1. **Agent 与 TileFoundry 通过硬件无关的 HIR，硬件相关runtime twin 两份程序** source-to-source 交互。 HIR 是硬件无关的语义参考程序，描述算什么、每个 value 驻留在哪一层内存、沿 tensor 的哪个轴切分；它可以被 evaluator 直接解释执行，也可以被静态分析，在尚无任何 kernel 实现时便算出 IO 流量、容量与 roofline 下限。runtime twin 是硬件相关的程序，指令选择、barrier、流水级数、warp 分工、拷贝是否异步、寄存器预算如何划分，都在这一层决定；TileFoundry 从不读它的函数体，只调用它。
 
@@ -278,7 +280,9 @@ H200 上本次实测，PyTorch reference 为 **34.67 μs**，CUDA twin 为 **7.6
 
 ![图 2 TileFoundry 优化 attention 的 workflow](figures/workflow.png)
 
-*图 2　使用 TileFoundry 优化 attention 的过程示意图。*
+/// caption
+图 2　使用 TileFoundry 优化 attention 的过程示意图。
+///
 
 > 在今天的大模型中，agent 已经具备了很强的指令跟随能力，因此，有着很强的锚点效应。利用这一行为特点，让 AI compiler 在 agent 实现高性能 kernel 的整个优化路径上，对 machine-independent optimizations、lowering、machine-dependent optimizations 这些在 AI compiler 中有大量研究的环节，动态地给予反馈，能够稳定和加速 agent 写出高性能 kernel 的过程，帮助 aegnt 跳出优化路径上遇到的性能瓶颈。
 
@@ -301,6 +305,7 @@ TileFoundry 设计之初就对这个目标做过验证（详见 [Qwen3-1.7B](htt
 | 额外知识 | 关于 TileFoundry 的一切都向 `tilefoundry` 命令提问；关于模型本身自己研究 |
 | 人的输入 | 两轮：[一段 prompt](https://github.com/tile-ai/TileFoundry/tree/main/examples/nemotron_3_5_lightning_30b_a3b-tilelang#stage-1--the-prompt-and-nothing-else)，加一次追问 |
 | 耗时 | 12.24 小时，1124 次工具调用，没有子 agent |
+| 输出 | 纯 TileLang 实现的 [decode mega kernel](https://github.com/tile-ai/TileFoundry/blob/v0.0.2/examples/nemotron_3_5_lightning_30b_a3b-tilelang/mega_kernel.py#L215-L218)；[短 context 为 287.4 tok/s，context=262080 时为 231.6 tok/s](https://github.com/tile-ai/TileFoundry/blob/v0.0.2/examples/nemotron_3_5_lightning_30b_a3b-tilelang/README.md#L13-L19) |
 
 [prompt](https://github.com/tile-ai/TileFoundry/tree/main/examples/nemotron_3_5_lightning_30b_a3b-tilelang#stage-1--the-prompt-and-nothing-else) 规定了以下方面的内容，其余全部留给 agent 自己决定。
 
@@ -376,7 +381,7 @@ TileFoundry 设计之初就对这个目标做过验证（详见 [Qwen3-1.7B](htt
 
     > `next_h` 在每个线程的 `rmem` 中产生，同时进入本线程的 `local_sq`；`reshard` 去掉 thread split 后，256 份局部平方和在 CTA 内归并，下一层 RMSNorm 直接使用 `sum_sq`。这对应 TileLang 中[`residual` 同时产生 hidden row 与平方和](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/gen_kernel.py#L353-L367)，[`rmsnorm` 随后直接消费它](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/gen_kernel.py#L339-L350)。同一 placement 也解释了另一个反直觉选择：kernel 让每个 CTA 重复计算 residual、router top-k 和部分 convolution，以少量重复计算换掉 grid barrier。[最终代码对这个取舍的说明](https://github.com/tile-ai/TileFoundry/blob/2bec6420ee28c62194c7048f7a32b7d9e8d93663/examples/nemotron_3_5_lightning_30b_a3b-tilelang/mega_kernel.py#L19-L23)保留在程序开头。
 
-> 这三点构成了我们想要的分工：compiler 不必包办搜索与代码生成，**而要持续提供可以信任的事实**；agent 则利用这些事实提出候选、改写结构并完成实现。反馈足够及时、拒绝足够确定、优化语义信息足够完整时，agent 的价值才能跳出只是把一组参数搜索得更快。
+这三点构成了我们想要的分工：compiler 不必包办搜索与代码生成，**而要持续提供可以信任的事实**；agent 则利用这些事实提出候选、改写结构并完成实现。反馈足够及时、拒绝足够确定、优化语义信息足够完整时，agent 的价值才能跳出只是把一组参数搜索得更快。
 
 ## Looking Ahead { #outlook }
 

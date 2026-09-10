@@ -575,7 +575,17 @@ body,
 .tf-card:hover { color: var(--tf-red); }
 .tf-card strong,
 .tf-card small { display: block; }
-.tf-card strong { margin: 1.15rem 0 0.42rem; font-family: var(--tf-display); font-size: 0.9rem; }
+.tf-card strong {
+  margin: 1.15rem 0 0.42rem;
+  font-family: var(--tf-display);
+  font-size: 0.9rem;
+  transition: color 140ms ease;
+}
+.tf-card:hover strong,
+.tf-card:focus-visible strong {
+  color: #b83224;
+  font-style: italic;
+}
 .tf-card small { color: var(--md-default-fg-color--light); line-height: 1.5; }
 .tf-card-index { color: var(--md-default-fg-color--light); font-family: var(--tf-mono); font-size: 0.68rem; font-weight: 700; }
 
@@ -804,12 +814,42 @@ body,
 
 .md-typeset img:is([src$="figures/usage.png"], [src$="figures/workflow.png"]) {
   display: block;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.md-typeset img[src$="figures/usage.png"] {
   width: 60%;
-  margin: 1.4rem auto 0.5rem;
+}
+
+.md-typeset figure {
+  margin: 1.4rem 0;
+  text-align: center;
+}
+
+.md-typeset figure > p {
+  margin: 0;
+}
+
+.md-typeset figcaption {
+  width: max-content;
+  max-width: 100%;
+  margin: 0.45rem auto 0;
+  color: var(--tf-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.md-typeset figcaption p {
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 @media screen and (max-width: 44.9375em) {
-  .md-typeset img:is([src$="figures/usage.png"], [src$="figures/workflow.png"]) {
+  .md-typeset img[src$="figures/usage.png"] {
     width: 100%;
   }
 }

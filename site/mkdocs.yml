@@ -39,6 +39,7 @@ markdown_extensions:
   - attr_list
   - footnotes
   - md_in_html
+  - pymdownx.blocks.caption
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
@@ -63,7 +64,7 @@ markdown_extensions:
 extra_css:
   # The query is a cache buster: this path carries no build fingerprint the
   # way the theme's own assets do, so bump it whenever the stylesheet changes.
-  - stylesheets/extra.css?v=20260903
+  - stylesheets/extra.css?v=20260910
 
 nav:
   - Home: index.md
