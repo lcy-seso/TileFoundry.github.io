@@ -229,31 +229,6 @@ body,
   line-height: 1.68;
 }
 
-.md-typeset p.tf-authors {
-  margin: -0.65rem 0 0.55rem;
-  color: var(--tf-muted);
-  font-family: var(--tf-mono);
-  font-size: 0.68rem;
-  line-height: 1.5;
-  text-align: right;
-}
-
-.md-typeset p.tf-authors::before {
-  margin-right: 0.35rem;
-  color: var(--tf-red);
-  content: "✦";
-}
-
-.md-typeset p.tf-authors strong {
-  color: var(--tf-red-dark);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.md-typeset p.tf-authors a {
-  font-weight: 600;
-}
-
 .md-typeset a {
   text-decoration-color: color-mix(in srgb, var(--md-typeset-a-color), transparent 58%);
   text-decoration-thickness: 1px;

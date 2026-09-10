@@ -1,8 +1,5 @@
 # AI Compilers in the Agentic Era
 
-**Authors:** [Zheng QiHang](https://github.com/zhen8838) · [Cao Ying](https://github.com/lcy-seso)
-{ .tf-authors }
-
 当使用者变成 agent，AI compiler 该如何演进？
 
 ## 重新思考 agent 与 AI compiler 之间的边界 { #who }
